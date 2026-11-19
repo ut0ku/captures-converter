@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import InfoSections, { FormatMarquee } from "./InfoSections.jsx";
 
 const formats = ["PNG", "JPG", "HEIC", "AVIF", "WEBP", "GIF", "TIFF"];
+const resolutionPresets = [640, 1080, 1920, 2560];
 const navigation = [
   { label: "Конвертер", href: "#converter" },
   { label: "Возможности", href: "#features" },
@@ -34,7 +35,8 @@ function Icon({ name, size = 18 }) {
     lock: <><rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 1 1 8 0v3" /></>,
     file: <><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z" /><path d="M13 2v7h7M8 14h8m-8 4h8" /></>,
     trash: <><path d="M3 6h18m-2 0-.9 14H5.9L5 6m4 0V4h6v2m-5 4v6m4-6v6" /></>,
-    chevron: <path d="m7 10 5 5 5-5" />,
+    link: <><path d="m10 13.5 4-4" /><path d="M7.5 14.5 6 16a3.5 3.5 0 0 1-5-5l4-4a3.5 3.5 0 0 1 5 0" /><path d="m16.5 9.5 1.5-1.5a3.5 3.5 0 0 1 5 5l-4 4a3.5 3.5 0 0 1-5 0" /></>,
+    unlink: <><path d="m10 13.5 4-4" /><path d="M7.5 14.5 6 16a3.5 3.5 0 0 1-5-5l4-4a3.5 3.5 0 0 1 4.5-.4" /><path d="m16.5 9.5 1.5-1.5a3.5 3.5 0 0 1 5 5l-4 4a3.5 3.5 0 0 1-4.5.4M3 3l18 18" /></>,
     user: <><path d="M20 21a8 8 0 0 0-16 0" /><circle cx="12" cy="8" r="4" /></>,
     menu: <><path d="M4 7h16M4 12h16M4 17h16" /></>,
     film: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 4v16m10-16v16M3 9h4m-4 6h4m10-6h4m-4 6h4" /></>,
@@ -63,6 +65,8 @@ export default function App() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [format, setFormat] = useState("JPG");
   const [quality, setQuality] = useState(82);
+  const [resolution, setResolution] = useState({ width: "", height: "" });
+  const [isResolutionLinked, setIsResolutionLinked] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -119,6 +123,14 @@ export default function App() {
     }));
     setFiles((current) => [...current, ...next]);
     setSelectedIds((current) => [...current, ...next.map((file) => file.id)]);
+
+    const image = new Image();
+    image.onload = () => {
+      setResolution((current) => current.width || current.height
+        ? current
+        : { width: String(image.naturalWidth), height: String(image.naturalHeight) });
+    };
+    image.src = next[0].url;
   };
 
   const removeFile = (id) => {
@@ -132,6 +144,34 @@ export default function App() {
     setSelectedIds((current) => current.includes(id)
       ? current.filter((item) => item !== id)
       : [...current, id]);
+  };
+
+  const updateResolution = (dimension, value) => {
+    setResolution((current) => {
+      const currentWidth = Number(current.width);
+      const currentHeight = Number(current.height);
+      const changedValue = Number(value);
+      if (!isResolutionLinked || !value || !Number.isFinite(changedValue) || changedValue <= 0
+        || !Number.isFinite(currentWidth) || !Number.isFinite(currentHeight) || currentWidth <= 0 || currentHeight <= 0) {
+        return { ...current, [dimension]: value };
+      }
+
+      const ratio = currentHeight / currentWidth;
+      return dimension === "width"
+        ? { width: value, height: String(Math.max(1, Math.round(changedValue * ratio))) }
+        : { width: String(Math.max(1, Math.round(changedValue / ratio))), height: value };
+    });
+  };
+
+  const applyResolutionPreset = (width) => {
+    setResolution((current) => {
+      const currentWidth = Number(current.width);
+      const currentHeight = Number(current.height);
+      const height = isResolutionLinked && currentWidth > 0 && currentHeight > 0
+        ? String(Math.max(1, Math.round(width * currentHeight / currentWidth)))
+        : current.height;
+      return { width: String(width), height };
+    });
   };
 
   const selectedFiles = files.filter((file) => selectedIds.includes(file.id));
@@ -370,22 +410,91 @@ export default function App() {
 
             <div className="setting-block">
               <div className="setting-label-row">
-                <label className="setting-label" htmlFor="format">Формат конвертации</label>
+                <span className="setting-label" id="format-label">Формат конвертации</span>
                 <span className="setting-index">01</span>
               </div>
-              <div className="select-wrap">
-                <select id="format" value={format} onChange={(event) => setFormat(event.target.value)}>
-                  {formats.map((item) => <option key={item} value={item}>{item}</option>)}
-                </select>
-                <Icon name="chevron" size={16} />
+              <div className="format-options" role="group" aria-labelledby="format-label">
+                {formats.map((item) => (
+                  <button
+                    className={`format-option ${format === item ? "is-active" : ""}`}
+                    key={item}
+                    type="button"
+                    aria-pressed={format === item}
+                    onClick={() => setFormat(item)}
+                  >
+                    {item}
+                  </button>
+                ))}
               </div>
               <div className="format-hint"><span className="format-hint-dot" /> На выходе: <strong>.{format.toLowerCase()}</strong></div>
+            </div>
+
+            <div className="setting-block resolution-block">
+              <div className="setting-label-row">
+                <span className="setting-label" id="resolution-label">Разрешение</span>
+                <span className="setting-index">02</span>
+              </div>
+              <div className="resolution-fields" role="group" aria-labelledby="resolution-label">
+                <label className="dimension-field">
+                  <span>Ширина, px</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={resolution.width}
+                    onChange={(event) => updateResolution("width", event.target.value)}
+                    aria-label="Ширина в пикселях"
+                  />
+                </label>
+                <label className="dimension-field">
+                  <span>Высота, px</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={resolution.height}
+                    onChange={(event) => updateResolution("height", event.target.value)}
+                    aria-label="Высота в пикселях"
+                  />
+                </label>
+              </div>
+              <div className="resolution-link-row">
+                <button
+                  className={`resolution-link-toggle ${isResolutionLinked ? "is-linked" : ""}`}
+                  type="button"
+                  aria-pressed={isResolutionLinked}
+                  onClick={() => setIsResolutionLinked((current) => !current)}
+                >
+                  <span className="resolution-switch" aria-hidden="true"><span /></span>
+                  <Icon name={isResolutionLinked ? "link" : "unlink"} size={13} />
+                  <span>Связать ширину и высоту</span>
+                </button>
+              </div>
+              <div className="resolution-presets">
+                <div className="resolution-presets-heading">
+                  <span>Быстрые значения</span>
+                  <small>по ширине</small>
+                </div>
+                <div className="resolution-preset-list" role="group" aria-label="Быстрая ширина">
+                  {resolutionPresets.map((value) => (
+                    <button
+                      className={`resolution-preset ${resolution.width === String(value) ? "is-active" : ""}`}
+                      key={value}
+                      type="button"
+                      aria-pressed={resolution.width === String(value)}
+                      onClick={() => applyResolutionPreset(value)}
+                    >
+                      {value}px
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="setting-block compression-block">
               <div className="setting-label-row">
                 <label className="setting-label" htmlFor="quality">Сжатие</label>
-                <span className="setting-index">02</span>
+                <span className="setting-index">03</span>
               </div>
               <div className="quality-heading">
                 <span>Степень сжатия</span>
