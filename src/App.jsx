@@ -191,7 +191,7 @@ export default function App() {
           <nav className={`topbar-inner ${scrolled ? "glass" : ""}`} aria-label="Основная навигация">
             <a className="brand" href="#top" aria-label="Конвертер изображений — на главную">
               <span className="brand-mark">
-                <Icon name="film" size={18} />
+                <Icon name="image" size={18} />
                 <span className="brand-shimmer" />
               </span>
               <span className="brand-copy"><strong>Converter</strong><small>Фото конвертер</small></span>
@@ -265,7 +265,7 @@ export default function App() {
           <a className="button button-secondary hero-button" href="#instructions">Как это работает</a>
         </div>
         <ul className="hero-highlights">
-          <li><Icon name="lock" size={15} /> Файлы остаются на устройстве</li>
+          <li><Icon name="lock" size={15} /> Файлы обрабатываются на сервере</li>
           <li><Icon name="image" size={15} /> 7 форматов на выбор</li>
           <li><Icon name="sparkles" size={15} /> Пакетная обработка</li>
         </ul>
